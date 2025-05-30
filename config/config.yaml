@@ -1,25 +1,25 @@
-# 차량 분류 모델 설정 파일
+# 차량 분류 모델 설정 파일 (보수적 최적화 버전)
 
 # 데이터 설정
 data:
   train_dir: "data/train"
   test_dir: "data/test"
-  img_size: 384  # ConvNeXt V2 Large에 최적화된 크기
+  img_size: 320  # 384 -> 320으로 축소 (17% 감소, 속도 향상)
   num_classes: 396
 
-# 모델 설정 (1등을 위한 최강 모델!)
+# 모델 설정 (안정성과 속도 균형)
 model:
-  backbone: "convnextv2_large.fcmae_ft_in22k_in1k_384"  # 🚀 최고 성능 모델
+  backbone: "convnextv2_large.fcmae_ft_in22k_in1k_384"  # 최고 성능 모델 유지
   dropout: 0.5
   pretrained: true
 
-# 학습 설정 (1등을 위한 최적화!)
+# 학습 설정 (보수적 최적화)
 training:
   epochs: 100
-  batch_size: 24  # ConvNeXt V2 Large는 메모리를 많이 사용하므로 조정
-  learning_rate: 0.005  # ConvNeXt에 최적화된 학습률
+  batch_size: 8  # 24 -> 8로 감소 (메모리 사용량 67% 감소, 속도 향상)
+  learning_rate: 0.0025  # 0.005 -> 0.0025로 감소 (50% 감소, 안정성 향상)
   weight_decay: 0.05
-  num_workers: 8
+  num_workers: 1  # 8 -> 1로 감소 (메모리 사용량 감소, 안정성 향상)
   
   # 손실 함수 (불균형 데이터에 최적)
   loss:
@@ -53,7 +53,7 @@ cv:
 logging:
   save_dir: "outputs"
   project_name: "car_classification_convnextv2"
-  experiment_name: "convnextv2_large_1st_place"
+  experiment_name: "convnextv2_large_optimized"  # 실험명 변경
   log_interval: 50
   save_top_k: 3
   
@@ -69,9 +69,9 @@ logging:
     monitor: "val_log_loss"
     mode: "min"
 
-# 추론 설정
+# 추론 설정 (보수적 최적화)
 inference:
-  batch_size: 32
+  batch_size: 16  # 32 -> 16으로 감소 (메모리 사용량 감소)
   tta: true  # Test Time Augmentation
   tta_steps: 5
 

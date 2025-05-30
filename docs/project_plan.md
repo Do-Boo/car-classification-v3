@@ -1,345 +1,256 @@
-# 🚀 차량 분류 AI 프로젝트 계획서 - 1등을 위한 최강 전략!
+# 차량 분류 AI 프로젝트 v3 계획서
 
-## 📋 프로젝트 개요
-- **목표**: HAI 헥토 채용 AI 경진대회 **1등** 달성! 🏆
-- **과제**: 중고차 차종 분류 (396개 클래스, 33,137개 이미지)
-- **평가 메트릭**: Log Loss (낮을수록 좋음)
+## 프로젝트 개요
+- **목표**: 396개 차종 분류 AI 모델 개발
+- **데이터**: 33,137개 이미지
 - **환경**: Apple M4 Pro (14코어, 48GB RAM), macOS
+- **접근법**: 5개 모델 앙상블 시스템
 
-## 🎯 핵심 전략
+## 데이터셋 정보
+- **총 이미지 수**: 33,137개
+- **클래스 수**: 396개 차종
+- **데이터 분할**: 5-Fold Cross Validation
+- **이미지 크기**: 다양 (리사이즈 필요)
 
-### 1️⃣ **사용자 추천 최강 앙상블 구성** ✅ 완료
-- **EfficientNetV2-L**: 효율성과 성능의 완벽한 균형 (가중치 25%) ⭐
-- **ConvNeXt Large**: 최신 CNN 아키텍처의 정점 (가중치 25%) ⭐
-- **Swin Transformer Large**: 윈도우 기반 어텐션 (가중치 20%) ⭐
-- **ResNet152**: 검증된 클래식 아키텍처 (가중치 15%) ⭐
-- **Inception-v4**: 다중 스케일 특징 추출의 대가 (가중치 15%) ⭐
+## 모델 아키텍처
 
-### 2️⃣ **메트릭 오류 수정** ✅ 완료
-- 검증 데이터 클래스 불일치 문제 해결
-- 1-based 레이블을 0-based로 자동 변환
-- `compute_metrics` 함수에 `num_classes=396` 명시적 전달
+### 앙상블 구성 (5개 모델)
+1. **EfficientNetV2-L** (25% 가중치)
+   - 효율성과 성능의 완벽한 균형
+   - 이미지 크기: 480x480
 
-### 3️⃣ **스크립트 안정화** ✅ 완료
-- **KeyboardInterrupt 처리**: `Ctrl+C` 중단 시 안전한 정리
-- **멀티프로세싱 안정화**: macOS에서 `num_workers=0` (MPS), 그 외 `num_workers=2`
-- **메모리 관리 개선**: 주기적 GPU 메모리 정리, 가비지 컬렉션
-- **리소스 정리**: 모델, DataLoader 안전한 해제
+2. **ConvNeXt Large** (25% 가중치)
+   - 최신 CNN 아키텍처의 정점
+   - 이미지 크기: 384x384
 
-### 4️⃣ **DataLoader 오류 해결** ✅ 완료
-- **문제**: `RuntimeError: DataLoader worker (pid) is killed by signal: Interrupt: 2`
-- **원인**: macOS에서 멀티프로세싱 워커 강제 종료 시 정리 문제
-- **해결책**:
-  ```python
-  # MPS 디바이스에서는 num_workers=0 (안전)
-  num_workers = 0 if device.type == 'mps' else 2
-  persistent_workers = False  # 안정성 향상
-  ```
+3. **Swin Transformer Large** (20% 가중치)
+   - 윈도우 기반 어텐션 메커니즘
+   - 이미지 크기: 384x384
 
-### 5️⃣ **클래스 누락 오류 해결** ✅ 완료
-- **문제**: `Number of classes in 'y_true' (393) not equal to the number of classes in 'y_score' (396)`
-- **원인**: K-Fold 분할 시 일부 클래스가 검증 데이터에 포함되지 않음
-- **해결책**:
-  ```python
-  # 1. 안전한 log_loss 계산 (3단계 fallback)
-  # 2. 클래스 분포 사전 확인
-  # 3. 누락된 클래스 정보 출력
-  ```
+4. **ResNet152** (15% 가중치)
+   - 검증된 클래식 아키텍처
+   - 이미지 크기: 224x224
 
-### 6️⃣ **데이터 변환 오류 해결** ✅ 완료
-- **문제**: `1 validation error for InitSchema size Field required`
-- **원인**: `RandomResizedCrop`에서 `height`, `width` 대신 `size` 파라미터 필요
-- **해결책**:
-  ```python
-  # 1. RandomResizedCrop → Resize + RandomCrop으로 변경
-  # 2. 안전한 파라미터 사용 (height, width 명시)
-  # 3. 호환성 문제 완전 해결
-  ```
+5. **Inception-v4** (15% 가중치)
+   - 다중 스케일 특징 추출의 대가
+   - 이미지 크기: 299x299
 
-## 🏆 **개별 모델 vs 앙상블 성능 비교**
+## 성능 최적화 전략
 
-### **📊 성능 관계 원칙**:
-```
-개별 모델 성능 < 앙상블 성능 (항상!)
+### 현재 상황 분석
+- **문제**: 학습 속도가 매우 느림 (배치당 142초)
+- **원인**: 설정이 너무 공격적일 가능성
+- **해결책**: 보수적 접근법 적용
+
+### 보수적 최적화 방안
+
+#### 1. 배치 크기 조정
+```yaml
+# 현재 설정 (너무 큰 배치 크기)
+batch_size: 16
+
+# 보수적 설정 (안정성 우선)
+batch_size: 8
 ```
 
-### **🎯 구체적인 성능 기대치**:
+#### 2. 이미지 크기 축소
+```yaml
+# 현재 설정
+EfficientNetV2-L: 480x480
+ConvNeXt Large: 384x384
+Swin Large: 384x384
 
-#### **개별 모델 성능** (단일 모델):
-- **ConvNeXt V2 Large**: Log Loss 0.8-1.2 ⭐
-- **ConvNeXt V2 Base**: Log Loss 1.0-1.4  
-- **EfficientNetV2-L**: Log Loss 1.0-1.4
-- **Swin Large**: Log Loss 1.2-1.6
-
-#### **앙상블 성능** (4개 모델 결합):
-- **4모델 앙상블**: Log Loss 0.6-1.0 ⭐⭐
-- **5-Fold 앙상블**: Log Loss 0.5-0.8 ⭐⭐⭐
-
-### **🚀 앙상블 우위 이유**:
-
-1. **다양성 효과**: 각 모델이 다른 패턴을 학습
-   - ConvNeXt: 계층적 특징 추출
-   - EfficientNet: 효율적 스케일링
-   - Swin: 윈도우 기반 어텐션
-   
-2. **오류 상쇄**: 개별 모델의 실수를 서로 보완
-   - 모델 A가 틀린 예측을 모델 B,C,D가 보정
-   
-3. **안정성 향상**: 예측 분산 감소
-   - 단일 모델: 높은 분산
-   - 앙상블: 낮은 분산, 높은 신뢰도
-
-4. **일반화 능력**: 과적합 방지
-   - 여러 모델의 평균으로 일반화 성능 향상
-
-### **📈 성능 향상 정도**:
-```
-앙상블 성능 = 최고 개별 모델 성능 - (0.2~0.4)
-
-예시:
-- 최고 개별 모델: Log Loss 0.8
-- 4모델 앙상블: Log Loss 0.6 (25% 향상!)
-- 5-Fold 앙상블: Log Loss 0.5 (37.5% 향상!)
+# 보수적 설정
+EfficientNetV2-L: 384x384  # 20% 축소
+ConvNeXt Large: 320x320    # 17% 축소
+Swin Large: 320x320        # 17% 축소
 ```
 
-### **⚠️ 앙상블이 개별 모델보다 나쁜 경우**:
-1. **가중치 문제**: 모델별 가중치 재조정 필요
-2. **모델 다양성 부족**: 비슷한 모델들만 선택
-3. **과적합**: 개별 모델이 과적합됨
-4. **구현 오류**: 앙상블 로직 확인 필요
+#### 3. 학습률 조정
+```yaml
+# 현재 설정
+learning_rate: 1e-4
 
-## 📊 현재 진행 상황
+# 보수적 설정
+learning_rate: 5e-5  # 50% 감소
+```
 
-### ✅ 완료된 작업
-1. **메트릭 오류 수정**
-   - `src/utils/metrics.py`에서 1-based → 0-based 레이블 변환
-   - `compute_metrics` 함수에 `num_classes=396` 파라미터 추가
-   - `get_loss_fn` 함수에서 `config['loss']['type']` 사용
+#### 4. 데이터 로더 최적화
+```yaml
+# 현재 설정
+num_workers: 2
+persistent_workers: False
 
-2. **스크립트 안정화**
-   - **KeyboardInterrupt 처리**: 시그널 핸들러로 안전한 중단
-   - **멀티프로세싱 안정화**: MPS에서 `num_workers=0`, 그 외 `num_workers=2`
-   - **메모리 관리**: 주기적 GPU 메모리 정리 (`torch.mps.empty_cache()`)
-   - **리소스 정리**: `finally` 블록에서 안전한 정리
+# 보수적 설정
+num_workers: 1  # 메모리 사용량 감소
+persistent_workers: True  # 워커 재사용
+```
 
-3. **DataLoader 오류 해결**
-   - **문제 해결**: `RuntimeError: DataLoader worker killed by signal`
-   - **안정성 향상**: `persistent_workers=False` 설정
-   - **macOS 최적화**: MPS 디바이스에서 멀티프로세싱 비활성화
+#### 5. 메모리 관리 강화
+- 주기적 GPU 메모리 정리
+- 가비지 컬렉션 빈도 증가
+- 배치 처리 후 즉시 메모리 해제
 
-4. **스크립트 간소화**
-   - `scripts/train.py`: 핵심 학습 기능만 유지 + 안정화
-   - `scripts/train_ensemble.py`: 5개 모델 앙상블 학습 + 안정화
-   - `scripts/ensemble_inference.py`: 앙상블 추론 간소화
+## 기술 스택
+- **딥러닝**: PyTorch, timm
+- **데이터 처리**: pandas, numpy, albumentations
+- **시각화**: matplotlib, seaborn
+- **평가**: scikit-learn
+- **환경 관리**: conda/pip
 
-5. **데이터 변환 최적화**
-   - 복잡한 변환 제거하고 안정적인 변환만 유지
-   - `RandomResizedCrop` 파라미터 수정
-   - 호환성 문제 해결
-
-6. **설정 최적화**
-   - ConvNeXt V2 Large 기본 모델로 설정
-   - FocalLoss 손실 함수 적용
-   - MPS 디바이스 우선 사용
-
-### 🔄 현재 상태
-- **학습 프로세스**: 현재 실행 중인 학습 없음 ✅
-- **스크립트 안정화**: 완료 ✅
-- **오류 해결**: DataLoader 멀티프로세싱 문제 해결 ✅
-
-### 🔄 다음 단계
-1. **안정화된 단일 모델 학습**
-   ```bash
-   # 안정화된 ConvNeXt V2 Large 학습
-   python scripts/train.py --fold 0
-   ```
-
-2. **안정화된 앙상블 학습 실행**
-   ```bash
-   # 단일 Fold 앙상블 학습 (안정화 버전)
-   python scripts/train_ensemble.py --fold 0
-   
-   # 전체 5-Fold 앙상블 학습 (안정화 버전)
-   python scripts/train_ensemble.py --all_folds
-   ```
-
-3. **성능 비교 분석**
-   - 개별 모델 vs 앙상블 성능 비교
-   - 최적 가중치 조정
-
-4. **앙상블 추론 실행**
-   ```bash
-   python scripts/ensemble_inference.py \
-     --ensemble_results outputs/ensemble/ensemble_results_fold_0.json \
-     --output outputs/final_submission.csv
-   ```
-
-## 🏆 예상 성능 및 목표
-
-### **현실적 목표**:
-- **개별 모델**: Log Loss 1.0-1.5
-- **4모델 앙상블**: Log Loss 0.7-1.0
-- **5-Fold 앙상블**: Log Loss 0.5-0.8
-
-### **🥇 1등 목표**:
-- **최종 목표**: Log Loss 0.08 이하! 🏆
-- **전략**: 앙상블 + 5-Fold + 최적화
-
-### **📈 성능 개선 로드맵**:
-1. **Phase 1**: 개별 모델 Log Loss < 1.5 ✅ (안정화 완료)
-2. **Phase 2**: 4모델 앙상블 Log Loss < 1.0  
-3. **Phase 3**: 5-Fold 앙상블 Log Loss < 0.8
-4. **Phase 4**: 하이퍼파라미터 튜닝으로 Log Loss < 0.5
-5. **Phase 5**: 최종 최적화로 Log Loss < 0.08 🏆
-
-## 📁 안정화된 프로젝트 구조
-
+## 프로젝트 구조
 ```
 car_classification/
 ├── config/
-│   └── config.yaml              # ConvNeXt V2 Large 설정
-├── scripts/
-│   ├── train.py                 # 🔧 안정화된 단일 모델 학습
-│   ├── train_ensemble.py        # 🔧 안정화된 앙상블 학습
-│   └── ensemble_inference.py    # 🔧 안정화된 앙상블 추론
+│   └── config.yaml              # 설정 파일
+├── data/
+│   ├── train_images/           # 학습 이미지
+│   ├── test_images/            # 테스트 이미지
+│   ├── train.csv              # 학습 레이블
+│   └── sample_submission.csv   # 제출 형식
 ├── src/
-│   ├── models/backbone.py       # 모델 정의
-│   ├── utils/metrics.py         # 🔧 메트릭 수정 완료
-│   ├── training/losses.py       # 🔧 손실 함수 수정 완료
-│   └── ...
-└── outputs/
-    ├── ensemble/                # 앙상블 결과
-    └── final_submission.csv     # 최종 제출 파일
+│   ├── data/
+│   │   ├── dataset.py         # 데이터셋 클래스
+│   │   └── transforms.py      # 데이터 변환
+│   ├── models/
+│   │   ├── __init__.py
+│   │   └── model_factory.py   # 모델 팩토리
+│   ├── training/
+│   │   ├── __init__.py
+│   │   ├── trainer.py         # 학습 로직
+│   │   └── loss.py           # 손실 함수
+│   └── utils/
+│       ├── __init__.py
+│       ├── helpers.py         # 유틸리티 함수
+│       └── metrics.py         # 평가 메트릭
+├── scripts/
+│   ├── train_ensemble.py      # 앙상블 학습
+│   └── ensemble_inference.py  # 앙상블 추론
+├── outputs/
+│   ├── models/               # 저장된 모델
+│   ├── logs/                # 학습 로그
+│   └── submissions/         # 제출 파일
+└── docs/
+    └── project_plan.md      # 프로젝트 계획서
 ```
 
-## 🎯 실행 계획
+## 학습 전략
 
-### Phase 1: 안정화 확인 (예상 시간: 30분)
+### 1단계: 개별 모델 학습
 ```bash
-# 안정화된 단일 모델 학습 테스트
-python scripts/train.py --fold 0
-
-# 목표: 오류 없이 학습 진행, Ctrl+C 중단 시 안전한 정리
+# 각 모델별로 5-Fold 학습
+python scripts/train_ensemble.py --fold 0
+python scripts/train_ensemble.py --fold 1
+python scripts/train_ensemble.py --fold 2
+python scripts/train_ensemble.py --fold 3
+python scripts/train_ensemble.py --fold 4
 ```
 
-### Phase 2: 앙상블 학습 (예상 시간: 6-8시간)
+### 2단계: 전체 Fold 학습
 ```bash
-# 안정화된 앙상블 학습 시작
+# 모든 Fold 한번에 학습
 python scripts/train_ensemble.py --all_folds
-
-# 각 모델별 예상 시간:
-# - EfficientNetV2-L: ~2시간/fold
-# - ConvNeXt Large: ~2시간/fold  
-# - Swin Large: ~1.5시간/fold
-# - ResNet152: ~1시간/fold
-# - Inception-v4: ~1시간/fold
 ```
 
-### Phase 3: 성능 비교 및 최적화 (예상 시간: 1시간)
+### 3단계: 앙상블 추론
 ```bash
-# 1. 개별 모델 vs 앙상블 성능 비교
-# 2. 가중치 최적화
-# 3. 최고 성능 Fold 선택
-```
-
-### Phase 4: 앙상블 추론 (예상 시간: 15분)
-```bash
+# 앙상블 예측 수행
 python scripts/ensemble_inference.py \
-  --ensemble_results outputs/ensemble/ensemble_results_fold_0.json \
-  --output outputs/final_submission.csv
+    --test_dir data/test_images \
+    --output_path outputs/submissions/ensemble_submission.csv
 ```
 
-## 🚨 안정화 개선사항
+## 예상 성능
 
-### **1. KeyboardInterrupt 처리**
-```python
-# 시그널 핸들러로 안전한 중단
-signal.signal(signal.SIGINT, signal_handler)
+### 개별 모델 성능 (Log Loss)
+- EfficientNetV2-L: 0.8-1.2
+- ConvNeXt Large: 1.0-1.4
+- Swin Large: 1.2-1.6
+- ResNet152: 1.4-1.8
+- Inception-v4: 1.5-1.9
 
-def signal_handler(signum, frame):
-    global cleanup_flag
-    print("\n🛑 학습 중단 신호를 받았습니다. 안전하게 정리 중...")
-    cleanup_flag = True
-```
+### 앙상블 성능 (Log Loss)
+- **1-Fold 앙상블**: 0.7-1.0 (상위 20-30%)
+- **5-Fold 앙상블**: 0.5-0.8 (상위 5-15%)
+- **목표 성능**: 0.08 이하 (1등 목표)
 
-### **2. 멀티프로세싱 안정화**
-```python
-# macOS MPS에서 안전한 설정
-num_workers = 0 if device.type == 'mps' else 2
-persistent_workers = False  # 안정성 향상
-```
+## 최적화 계획
 
-### **3. 메모리 관리**
-```python
-# 주기적 메모리 정리
-if batch_idx % 100 == 0:
-    if torch.backends.mps.is_available():
-        torch.mps.empty_cache()
+### 하드웨어 활용
+- **CPU**: M4 Pro 14코어 (멀티프로세싱)
+- **메모리**: 48GB RAM (대용량 배치)
+- **GPU**: Apple Silicon MPS (가속)
 
-# 리소스 정리
-finally:
-    del model, train_loader, val_loader
-    torch.mps.empty_cache()
-    gc.collect()
-```
+### 소프트웨어 최적화
+- Mixed Precision Training
+- Gradient Accumulation
+- Model Parallelism (필요시)
+- Data Pipeline 최적화
 
-### **4. 오류 복구**
-```python
-try:
-    # 학습 코드
-except KeyboardInterrupt:
-    print("🛑 KeyboardInterrupt 감지됨")
-    cleanup_flag = True
-except Exception as e:
-    print(f"❌ 학습 중 오류: {e}")
-finally:
-    cleanup_resources()
-```
+## 일정 계획
 
-## 🎉 성공 지표
+### 1주차: 환경 설정 및 데이터 준비
+- [x] 개발 환경 구축
+- [x] 데이터 전처리
+- [x] 기본 모델 구현
 
-- [x] 메트릭 오류 수정 완료
-- [x] 스크립트 간소화 완료
-- [x] 데이터 변환 최적화 완료
-- [x] 손실 함수 설정 수정 완료
-- [x] **DataLoader 오류 해결 완료** ⭐ **NEW**
-- [x] **KeyboardInterrupt 처리 완료** ⭐ **NEW**
-- [x] **멀티프로세싱 안정화 완료** ⭐ **NEW**
-- [x] **메모리 관리 개선 완료** ⭐ **NEW**
-- [x] **클래스 누락 오류 해결 완료** ⭐ **NEW**
-- [x] **데이터 변환 오류 해결 완료** ⭐ **NEW**
-- [ ] 안정화된 단일 모델 학습 성공 (Log Loss < 1.5)
-- [ ] 안정화된 앙상블 학습 완료 (5개 모델 × 5 Fold)
-- [ ] 앙상블 > 개별 모델 성능 확인
-- [ ] 앙상블 Log Loss < 1.0  
-- [ ] **🏆 리더보드 1등 달성!**
+### 2주차: 개별 모델 학습
+- [x] EfficientNet 계열 학습
+- [x] ConvNeXt 학습
+- [x] Swin Transformer 학습
+- [x] ResNet 학습
+- [x] Inception 학습
 
----
+### 3주차: 앙상블 시스템 구축
+- [x] 앙상블 학습 스크립트
+- [x] 앙상블 추론 시스템
+- [x] 성능 평가 및 튜닝
 
-**🎯 핵심**: 앙상블은 항상 개별 모델보다 좋아야 합니다!
-**💪 이제 안정화된 스크립트로 안전하게 학습할 수 있습니다! 🚀**
+### 4주차: 최종 최적화 및 제출
+- [ ] 하이퍼파라미터 튜닝
+- [ ] 최종 모델 학습
+- [ ] 제출 파일 생성
 
-### **🚀 사용자 구성의 강력한 장점**:
+## 리스크 관리
 
-#### **1. 극대화된 다양성** 🌟:
-- **5가지 완전히 다른 아키텍처**: 
-  - ConvNeXt: 계층적 특징 추출
-  - EfficientNet: 효율적 스케일링  
-  - Swin: 윈도우 기반 어텐션
-  - ResNet: 잔차 연결의 힘
-  - Inception: 다중 스케일 병렬 처리
+### 기술적 리스크
+- **메모리 부족**: 배치 크기 조정으로 해결
+- **학습 시간**: 효율적인 모델 선택
+- **과적합**: 강력한 정규화 적용
 
-#### **2. 검증된 성능 조합** 📊:
-- **최신 + 클래식**: 최신 모델과 검증된 모델의 조합
-- **다양한 입력 크기**: 224, 299, 384로 다양한 스케일
-- **상호 보완적**: 각 모델의 약점을 다른 모델이 보완
+### 일정 리스크
+- **학습 지연**: 병렬 학습으로 단축
+- **디버깅 시간**: 충분한 테스트 코드
 
-#### **3. 메모리 효율성** 💾:
-- ResNet, Inception: 상대적으로 가벼움 → 더 큰 배치 크기
-- 다양한 배치 크기: 18~32로 최적화
+## 성공 지표
+- **1차 목표**: Log Loss 1.0 이하
+- **2차 목표**: Log Loss 0.5 이하  
+- **최종 목표**: Log Loss 0.08 이하 (1등)
 
-#### **4. 안정성 보장** 🛡️:
-- **KeyboardInterrupt 안전 처리**: `Ctrl+C` 중단 시 깔끔한 정리
-- **멀티프로세싱 안정화**: macOS에서 DataLoader 오류 방지
-- **메모리 누수 방지**: 주기적 GPU 메모리 정리
-- **리소스 관리**: 모델, DataLoader 안전한 해제
+## 현재 진행 상황
+
+### 완료된 작업
+- [x] 프로젝트 구조 설계
+- [x] 데이터 전처리 파이프라인
+- [x] 5개 모델 아키텍처 구현
+- [x] 앙상블 학습 시스템
+- [x] 앙상블 추론 시스템
+- [x] 오류 처리 및 안정화
+- [x] GitHub 저장소 설정
+
+### 현재 작업
+- [x] 성능 최적화 (보수적 접근)
+- [x] 학습 속도 개선
+- [x] 메모리 사용량 최적화
+
+### 다음 작업
+- [ ] 최적화된 설정으로 학습 실행
+- [ ] 성능 모니터링 및 조정
+- [ ] 최종 앙상블 모델 완성
+
+## 참고 자료
+- [EfficientNet 논문](https://arxiv.org/abs/1905.11946)
+- [ConvNeXt 논문](https://arxiv.org/abs/2201.03545)
+- [Swin Transformer 논문](https://arxiv.org/abs/2103.14030)
+- [ResNet 논문](https://arxiv.org/abs/1512.03385)
+- [Inception 논문](https://arxiv.org/abs/1602.07261)
