@@ -1,4 +1,4 @@
-# 차량 분류 AI 프로젝트 v2
+# 차량 분류 AI 프로젝트 v3
 
 > 396개 차종을 분류하는 고성능 앙상블 모델
 
@@ -13,8 +13,8 @@
 
 ### 1. 환경 설정
 ```bash
-git clone https://github.com/Do-Boo/car-classification-v2.git
-cd car-classification-v2
+git clone https://github.com/Do-Boo/car-classification-v3.git
+cd car-classification-v3
 chmod +x setup.sh
 ./setup.sh
 ```
@@ -49,7 +49,7 @@ python scripts/ensemble_inference.py --fold 0
 ## 프로젝트 구조
 
 ```
-car-classification-v2/
+car-classification-v3/
 ├── src/                    # 소스 코드
 │   ├── models/            # 모델 정의
 │   ├── data/              # 데이터 로더
@@ -152,7 +152,7 @@ MIT License
 ## 연락처
 
 - GitHub: [@Do-Boo](https://github.com/Do-Boo)
-- Repository: [car-classification-v2](https://github.com/Do-Boo/car-classification-v2)
+- Repository: [car-classification-v3](https://github.com/Do-Boo/car-classification-v3)
 
 ---
 
