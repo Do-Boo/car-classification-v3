@@ -1,0 +1,79 @@
+# 차량 분류 모델 설정 파일
+
+# 데이터 설정
+data:
+  train_dir: "data/train"
+  test_dir: "data/test"
+  img_size: 384  # ConvNeXt V2 Large에 최적화된 크기
+  num_classes: 396
+
+# 모델 설정 (1등을 위한 최강 모델!)
+model:
+  backbone: "convnextv2_large.fcmae_ft_in22k_in1k_384"  # 🚀 최고 성능 모델
+  dropout: 0.5
+  pretrained: true
+
+# 학습 설정 (1등을 위한 최적화!)
+training:
+  epochs: 100
+  batch_size: 24  # ConvNeXt V2 Large는 메모리를 많이 사용하므로 조정
+  learning_rate: 0.005  # ConvNeXt에 최적화된 학습률
+  weight_decay: 0.05
+  num_workers: 8
+  
+  # 손실 함수 (불균형 데이터에 최적)
+  loss:
+    type: "FocalLoss"
+    alpha: 1.0
+    gamma: 2.0
+    label_smoothing: 0.15
+  
+  # 옵티마이저
+  optimizer:
+    type: "AdamW"
+    betas: [0.9, 0.999]
+    eps: 1e-8
+  
+  # 스케줄러 (안정적인 학습을 위해)
+  scheduler:
+    type: "ReduceLROnPlateau"
+    mode: "min"
+    factor: 0.5
+    patience: 3
+    min_lr: 0.00001
+    verbose: true
+
+# 교차 검증 설정
+cv:
+  n_splits: 5
+  shuffle: true
+  random_state: 42
+
+# 로깅 설정
+logging:
+  save_dir: "outputs"
+  project_name: "car_classification_convnextv2"
+  experiment_name: "convnextv2_large_1st_place"
+  log_interval: 50
+  save_top_k: 3
+  
+  # TensorBoard 설정
+  tensorboard:
+    enabled: true
+    log_dir: "outputs/tensorboard"
+  
+  # 체크포인트 설정
+  checkpoint:
+    save_best: true
+    save_last: true
+    monitor: "val_log_loss"
+    mode: "min"
+
+# 추론 설정
+inference:
+  batch_size: 32
+  tta: true  # Test Time Augmentation
+  tta_steps: 5
+
+# 시드 설정
+seed: 42
