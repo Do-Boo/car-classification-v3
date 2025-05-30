@@ -41,47 +41,63 @@ def signal_handler(signum, frame):
 # 시그널 핸들러 등록
 signal.signal(signal.SIGINT, signal_handler)
 
-# 🏆 사용자 추천 앙상블 모델 구성 (5개 모델)
+# 앙상블 모델 설정 (최강 성능 버전 - 0.08점 목표)
 ENSEMBLE_MODELS = {
-    "efficientnetv2_l": {
-        "backbone": "tf_efficientnetv2_l.in21k_ft_in1k",
-        "img_size": 384,
-        "batch_size": 24,
-        "learning_rate": 0.004,
-        "weight": 0.25,  # 25%
-        "description": "EfficientNetV2-L: 효율성과 성능의 완벽한 균형"
-    },
-    "convnext_large": {
-        "backbone": "convnext_large.fb_in22k_ft_in1k_384", 
-        "img_size": 384,
-        "batch_size": 20,
-        "learning_rate": 0.003,
-        "weight": 0.25,  # 25%
-        "description": "ConvNeXt Large: 최신 CNN 아키텍처의 정점"
-    },
-    "swin_large": {
-        "backbone": "swin_large_patch4_window12_384.ms_in22k_ft_in1k",
-        "img_size": 384,
-        "batch_size": 18,
-        "learning_rate": 0.003,
+    "efficientnetv2_xl": {  # L → XL 업그레이드
+        "backbone": "tf_efficientnetv2_xl.in21k_ft_in1k",
+        "img_size": 512,  # 384 → 512로 증가 (더 높은 해상도)
+        "batch_size": 4,  # XL 모델이므로 배치 크기 감소
+        "learning_rate": 0.001,  # 큰 모델에 맞게 조정
         "weight": 0.20,  # 20%
-        "description": "Swin Transformer Large: 윈도우 기반 어텐션"
+        "description": "EfficientNetV2-XL: 최대 성능 모델"
     },
-    "resnet152": {
-        "backbone": "resnet152.a1_in1k",
-        "img_size": 224,  # ResNet은 224가 최적
-        "batch_size": 32,
-        "learning_rate": 0.005,
-        "weight": 0.15,  # 15%
-        "description": "ResNet152: 검증된 클래식 아키텍처"
+    "convnext_xlarge": {  # Large → XLarge 업그레이드
+        "backbone": "convnext_xlarge.fb_in22k_ft_in1k_384",
+        "img_size": 384,  # XLarge 최적 크기
+        "batch_size": 4,  # XLarge 모델이므로 배치 크기 감소
+        "learning_rate": 0.001,  # 큰 모델에 맞게 조정
+        "weight": 0.20,  # 20%
+        "description": "ConvNeXt XLarge: CNN 아키텍처의 최정점"
     },
-    "inception_v4": {
-        "backbone": "inception_v4.tf_in1k",
-        "img_size": 299,  # Inception은 299가 최적
-        "batch_size": 28,
-        "learning_rate": 0.004,
+    "swin_large_v2": {  # Swin V2로 업그레이드
+        "backbone": "swinv2_large_window12to24_192to384_22kft1k",
+        "img_size": 384,  # Swin V2 최적 크기
+        "batch_size": 4,  # 큰 모델이므로 배치 크기 감소
+        "learning_rate": 0.001,
         "weight": 0.15,  # 15%
-        "description": "Inception-v4: 다중 스케일 특징 추출의 대가"
+        "description": "Swin Transformer V2 Large: 차세대 어텐션"
+    },
+    "efficientnet_b7": {  # 추가 EfficientNet 모델
+        "backbone": "tf_efficientnet_b7.ns_jft_in1k",
+        "img_size": 600,  # B7 최적 크기
+        "batch_size": 3,  # 큰 이미지 크기로 인한 배치 감소
+        "learning_rate": 0.0015,
+        "weight": 0.15,  # 15%
+        "description": "EfficientNet-B7: 검증된 고성능 모델"
+    },
+    "convnext_large": {  # 기존 Large 모델 유지 (다양성)
+        "backbone": "convnext_large.fb_in22k_ft_in1k_384", 
+        "img_size": 320,
+        "batch_size": 6,
+        "learning_rate": 0.0015,
+        "weight": 0.10,  # 10%
+        "description": "ConvNeXt Large: 안정적인 성능"
+    },
+    "resnet200d": {  # ResNet152 → ResNet200D 업그레이드
+        "backbone": "resnet200d.ra2_in1k",
+        "img_size": 256,  # ResNet200D 최적 크기
+        "batch_size": 8,
+        "learning_rate": 0.002,
+        "weight": 0.10,  # 10%
+        "description": "ResNet200D: 초깊은 잔차 네트워크"
+    },
+    "vit_large": {  # 새로운 Vision Transformer 추가
+        "backbone": "vit_large_patch16_384.augreg_in21k_ft_in1k",
+        "img_size": 384,  # ViT Large 최적 크기
+        "batch_size": 4,
+        "learning_rate": 0.001,
+        "weight": 0.10,  # 10%
+        "description": "Vision Transformer Large: 순수 어텐션 모델"
     }
 }
 
@@ -205,8 +221,8 @@ def train_single_model(config, model_name, fold, train_df):
             train_dataset = CarDataset(train_data, transform=train_transform, mode='train')
             val_dataset = CarDataset(val_data, transform=val_transform, mode='train')
             
-            # macOS에서 안정성을 위해 num_workers 조정
-            num_workers = 0 if device.type == 'mps' else 2  # MPS에서는 0, 그 외는 2
+            # macOS에서 안정성을 위해 num_workers 조정 (보수적 설정)
+            num_workers = 0  # 모든 환경에서 0으로 설정 (최대 안정성)
             use_pin_memory = device.type != 'mps'
             
             train_loader = DataLoader(
@@ -236,21 +252,25 @@ def train_single_model(config, model_name, fold, train_df):
                 lr=config['training']['learning_rate'], 
                 weight_decay=0.05
             )
-            scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-                optimizer, mode='min', factor=0.5, patience=3, min_lr=1e-6
+            scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(
+                optimizer, 
+                T_0=10,  # 첫 번째 재시작까지의 에포크 수
+                T_mult=2,  # 재시작 주기 배수
+                eta_min=1e-6,  # 최소 학습률
+                verbose=True
             )
             
             # 학습 루프
             best_val_loss = float('inf')
             best_model_path = f"{save_dir}/fold_{fold}/best_model.pth"
             
-            for epoch in range(50):  # 간소화: 50 에폭
+            for epoch in range(100):  # 20 -> 100으로 증가 (0.08점 목표 달성용)
                 # 중단 신호 확인
                 if cleanup_flag:
                     print("🛑 학습 중단됨")
                     break
                     
-                print(f"\n=== Epoch {epoch+1}/50 ===")
+                print(f"\n=== Epoch {epoch+1}/100 ===")
                 
                 # 학습
                 model.train()
@@ -273,10 +293,12 @@ def train_single_model(config, model_name, fold, train_df):
                         
                         train_loss += loss.item()
                         
-                        # 메모리 정리 (매 100 배치마다)
-                        if batch_idx % 100 == 0:
+                        # 메모리 정리 (매 10 배치마다 - 더 자주)
+                        if batch_idx % 10 == 0:
                             if torch.backends.mps.is_available():
                                 torch.mps.empty_cache()
+                            # CPU 메모리도 정리
+                            gc.collect()
                     
                     if cleanup_flag:
                         break
@@ -290,7 +312,7 @@ def train_single_model(config, model_name, fold, train_df):
                     all_targets = []
                     
                     with torch.no_grad():
-                        for images, targets in tqdm(val_loader, desc='Validation'):
+                        for batch_idx, (images, targets) in enumerate(tqdm(val_loader, desc='Validation')):
                             # 중단 신호 확인
                             if cleanup_flag:
                                 break
@@ -304,6 +326,12 @@ def train_single_model(config, model_name, fold, train_df):
                             probs = torch.softmax(outputs, dim=1)
                             all_preds.append(probs.cpu().numpy())
                             all_targets.append(targets.cpu().numpy())
+                            
+                            # 검증 중에도 메모리 정리 (매 5 배치마다)
+                            if batch_idx % 5 == 0:
+                                if torch.backends.mps.is_available():
+                                    torch.mps.empty_cache()
+                                gc.collect()
                     
                     if cleanup_flag:
                         break
@@ -320,7 +348,7 @@ def train_single_model(config, model_name, fold, train_df):
                     print(f"📊 Val Accuracy: {metrics['accuracy']:.2f}%")
                     
                     # 스케줄러 업데이트
-                    scheduler.step(val_loss)
+                    scheduler.step()
                     
                     # 최고 모델 저장
                     if val_loss < best_val_loss:
@@ -335,7 +363,7 @@ def train_single_model(config, model_name, fold, train_df):
                         print(f"✅ 최고 모델 저장: {best_model_path}")
                         
                 except KeyboardInterrupt:
-                    print("🛑 KeyboardInterrupt 감지됨")
+                    print("❌ KeyboardInterrupt 감지됨")
                     cleanup_flag = True
                     break
                 except Exception as e:
@@ -360,7 +388,7 @@ def train_ensemble(base_config_path, fold=0):
     global cleanup_flag
     
     print("🚀 차량 분류 앙상블 학습 시작!")
-    print("🏆 사용자 추천 5개 모델 구성:")
+    print("🏆 사용자 추천 7개 모델 구성:")
     
     for model_name, info in ENSEMBLE_MODELS.items():
         print(f"  • {model_name}: {info['description']} (가중치: {info['weight']*100}%)")
