@@ -1,15 +1,15 @@
-# 🚗 차량 분류 AI 프로젝트 v2
+# 차량 분류 AI 프로젝트 v2
 
 > 396개 차종을 분류하는 고성능 앙상블 모델
 
-## 📊 프로젝트 개요
+## 프로젝트 개요
 
 - **목표**: 396개 차종 분류 (33,137개 학습 이미지)
 - **모델**: 5개 최강 모델 앙상블 (EfficientNetV2-L, ConvNeXt Large, Swin Transformer Large, ResNet152, Inception-v4)
 - **예상 성능**: Log Loss 0.5-0.8 (5-Fold 앙상블)
 - **환경**: Apple Silicon 최적화
 
-## 🚀 빠른 시작
+## 빠른 시작
 
 ### 1. 환경 설정
 ```bash
@@ -46,7 +46,7 @@ python scripts/train_ensemble.py --all_folds
 python scripts/ensemble_inference.py --fold 0
 ```
 
-## 🏗️ 프로젝트 구조
+## 프로젝트 구조
 
 ```
 car-classification-v2/
@@ -63,7 +63,7 @@ car-classification-v2/
 └── requirements.txt       # 의존성
 ```
 
-## 🎯 모델 구성
+## 모델 구성
 
 | 모델 | 가중치 | 이미지 크기 | 배치 크기 | 설명 |
 |------|--------|-------------|-----------|------|
@@ -73,29 +73,29 @@ car-classification-v2/
 | ResNet152 | 15% | 224 | 32 | 검증된 클래식 아키텍처 |
 | Inception-v4 | 15% | 299 | 28 | 다중 스케일 특징 추출 |
 
-## 📈 성능 예상
+## 성능 예상
 
 - **1-Fold 앙상블**: Log Loss 0.7-1.0
 - **5-Fold 앙상블**: Log Loss 0.5-0.8
 - **예상 순위**: 상위 5-15%
 
-## 💻 시스템 요구사항
+## 시스템 요구사항
 
 - **권장**: Apple M4 Pro (14코어, 48GB RAM)
 - **최소**: 16GB RAM, GPU 8GB+
 - **OS**: macOS, Linux, Windows
 - **Python**: 3.8+
 
-## 🔧 주요 기능
+## 주요 기능
 
-- ✅ Apple Silicon 최적화
-- ✅ 자동 메모리 관리
-- ✅ 안전한 중단/재시작
-- ✅ 실시간 메트릭 모니터링
-- ✅ K-Fold 교차 검증
-- ✅ TTA (Test Time Augmentation)
+- Apple Silicon 최적화
+- 자동 메모리 관리
+- 안전한 중단/재시작
+- 실시간 메트릭 모니터링
+- K-Fold 교차 검증
+- TTA (Test Time Augmentation)
 
-## 📝 사용법
+## 사용법
 
 ### 설정 파일 수정
 ```yaml
@@ -123,7 +123,7 @@ ENSEMBLE_MODELS = {
 }
 ```
 
-## 🐛 문제 해결
+## 문제 해결
 
 ### 메모리 부족
 ```bash
@@ -137,11 +137,11 @@ ENSEMBLE_MODELS = {
 # 재시작: 동일한 명령어로 체크포인트부터 재개
 ```
 
-## 📄 라이선스
+## 라이선스
 
 MIT License
 
-## 🤝 기여
+## 기여
 
 1. Fork the Project
 2. Create your Feature Branch
@@ -149,11 +149,11 @@ MIT License
 4. Push to the Branch
 5. Open a Pull Request
 
-## 📞 연락처
+## 연락처
 
 - GitHub: [@Do-Boo](https://github.com/Do-Boo)
 - Repository: [car-classification-v2](https://github.com/Do-Boo/car-classification-v2)
 
 ---
 
-⭐ 이 프로젝트가 도움이 되었다면 Star를 눌러주세요!
+이 프로젝트가 도움이 되었다면 Star를 눌러주세요!
