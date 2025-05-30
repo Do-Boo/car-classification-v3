@@ -256,8 +256,7 @@ def train_single_model(config, model_name, fold, train_df):
                 optimizer, 
                 T_0=10,  # 첫 번째 재시작까지의 에포크 수
                 T_mult=2,  # 재시작 주기 배수
-                eta_min=1e-6,  # 최소 학습률
-                verbose=True
+                eta_min=1e-6  # 최소 학습률
             )
             
             # 학습 루프
