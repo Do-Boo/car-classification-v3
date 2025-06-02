@@ -367,3 +367,188 @@ batch_size = {
 
 ---
 **마지막 업데이트**: 2025-06-02 16:58 (SOTA 코드 업그레이드 완료) ✅
+
+## 🔧 **체크포인트 유틸리티 추가 완료 (2025-06-02 17:04)**
+
+### **✅ 누락된 체크포인트 시스템 구현 완료!**
+
+#### **🛠️ 문제 해결**
+- **문제**: `scripts/train_ensemble.py`에서 `src.utils.checkpoint` 모듈 import 오류
+- **원인**: `checkpoint.py` 파일이 존재하지 않음
+- **해결**: 완전한 SOTA 체크포인트 관리 시스템 구현
+
+#### **📁 새로 생성된 파일들**
+
+**1. `src/utils/checkpoint.py`**: 🔄 SOTA 체크포인트 관리 시스템
+```python
+# 핵심 기능들
+def save_checkpoint()          # 완전한 학습 상태 보존
+def load_checkpoint()          # 완전한 학습 상태 복원  
+def find_last_checkpoint()     # 중단된 학습 자동 재개
+def save_ensemble_checkpoint() # 앙상블 결과 저장
+def cleanup_old_checkpoints()  # 디스크 공간 절약
+def get_checkpoint_info()      # 체크포인트 정보 조회
+```
+
+**2. `src/utils/__init__.py`**: 📦 유틸리티 패키지 초기화
+- 모든 유틸리티 함수들을 체계적으로 관리
+- 명확한 import 경로 제공
+- 함수별 역할 분담 명시
+
+#### **🔄 기존 코드 개선사항**
+
+**1. `scripts/train_ensemble.py` 업그레이드**
+```python
+# 기존 (수동 체크포인트)
+checkpoint = {
+    'epoch': epoch + 1,
+    'model_state_dict': model.state_dict(),
+    # ... 기본 정보만
+}
+torch.save(checkpoint, best_path)
+
+# 개선 (SOTA 체크포인트 시스템)
+metrics = {
+    'train_loss': train_loss,
+    'val_loss': val_loss,
+    'val_log_loss': val_log_loss,
+    'train_acc': train_acc,
+    'val_acc': val_acc,
+    'epoch_time': epoch_time
+}
+
+save_checkpoint(
+    model=model,
+    optimizer=optimizer,
+    scheduler=scheduler,
+    epoch=epoch + 1,
+    metrics=metrics,
+    filepath=best_path,
+    config=config,
+    model_name=model_name,
+    fold=fold
+)
+```
+
+**2. 앙상블 결과 저장 개선**
+```python
+# 기존 (수동 JSON 저장)
+with open(results_path, 'w', encoding='utf-8') as f:
+    json.dump(ensemble_results, f, indent=2, ensure_ascii=False)
+
+# 개선 (전용 함수 사용)
+results_path = save_ensemble_checkpoint(ensemble_results, args.fold)
+```
+
+#### **🚀 체크포인트 시스템의 고급 기능들**
+
+**1. 자동 학습 재개** 🔄
+```python
+# 중단된 학습 자동 탐지 및 재개
+checkpoint_path, start_epoch = find_last_checkpoint(save_dir, fold)
+if checkpoint_path:
+    model, optimizer, scheduler, start_epoch = load_checkpoint(
+        checkpoint_path, model, optimizer, scheduler, device
+    )
+    print(f"🔄 Epoch {start_epoch}부터 학습 재개")
+```
+
+**2. 완전한 상태 보존** 💾
+```python
+# 모든 학습 상태 완벽 보존
+checkpoint = {
+    'epoch': epoch,
+    'model_state_dict': model.state_dict(),
+    'optimizer_state_dict': optimizer.state_dict(),
+    'scheduler_state_dict': scheduler.state_dict(),
+    'metrics': metrics,                    # 성능 메트릭
+    'model_name': model.__class__.__name__, # 모델 정보
+    'timestamp': timestamp,                # 저장 시간
+    'config': config,                      # 설정 정보
+    'fold': fold                          # K-Fold 정보
+}
+```
+
+**3. 디스크 공간 관리** 🧹
+```python
+# 오래된 체크포인트 자동 정리
+cleanup_old_checkpoints(save_dir, fold, keep_last=3)
+# 최근 3개만 유지, 나머지 자동 삭제
+```
+
+**4. 체크포인트 정보 조회** 📊
+```python
+# 체크포인트 상세 정보 확인
+info = get_checkpoint_info(checkpoint_path)
+print(f"Epoch: {info['epoch']}")
+print(f"Model: {info['model_name']}")
+print(f"Metrics: {info['metrics']}")
+print(f"File Size: {info['file_size']}")
+```
+
+#### **✨ 시스템 안정성 향상**
+
+**1. 장시간 학습 지원** ⏰
+- 언제든지 중단 가능, 자동 재개
+- 전체 학습 상태 완벽 보존
+- 메모리 부족이나 시스템 재시작에도 안전
+
+**2. 실험 추적성** 📈
+- 모든 에포크별 성능 기록
+- 설정 정보 자동 저장
+- 재현 가능한 실험 환경
+
+**3. 에러 복구** 🛡️
+- 손상된 체크포인트 자동 감지
+- 대체 체크포인트 자동 선택
+- 안전한 fallback 메커니즘
+
+### **🎯 실제 사용 시나리오**
+
+#### **시나리오 1: 학습 중단 후 재개**
+```bash
+# 1일차: 학습 시작
+python scripts/train_ensemble.py --fold 0
+
+# 시스템 재시작 또는 중단 발생...
+
+# 2일차: 자동으로 중단 지점부터 재개
+python scripts/train_ensemble.py --fold 0
+# 🔄 체크포인트 발견: best_fold_0.pth
+# 📊 Epoch 15부터 재개
+```
+
+#### **시나리오 2: 여러 실험 병렬 실행**
+```bash
+# 각 fold별로 독립적인 체크포인트 관리
+python scripts/train_ensemble.py --fold 0 &  # 백그라운드
+python scripts/train_ensemble.py --fold 1 &  # 백그라운드
+python scripts/train_ensemble.py --fold 2 &  # 백그라운드
+# 각각 독립적으로 저장/복원
+```
+
+#### **시나리오 3: 성능 분석**
+```python
+# 모든 체크포인트 성능 비교
+for fold in range(5):
+    checkpoint_path = f"outputs/ensemble/efficientnetv2_l/best_fold_{fold}.pth"
+    info = get_checkpoint_info(checkpoint_path)
+    print(f"Fold {fold}: {info['metrics']['val_log_loss']:.4f}")
+```
+
+### **🏆 최종 효과**
+
+#### **개발 효율성** 📈
+- 학습 중단 걱정 없음 (자동 재개)
+- 실험 관리 자동화
+- 디버깅 시간 단축
+
+#### **시스템 안정성** 🛡️
+- 장시간 학습 안전성 보장
+- 메모리/디스크 효율적 관리
+- 에러 상황 자동 복구
+
+#### **연구 재현성** 🔬
+- 완전한 실험 상태 보존
+- 설정 정보 자동 기록
+- 언제든지 정확한 재현 가능

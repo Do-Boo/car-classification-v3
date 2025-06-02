@@ -31,8 +31,8 @@ sys.path.append(str(Path(__file__).parent.parent))
 from src.models.backbone import get_model
 from src.data.dataset import CarDataset, get_train_transforms, get_valid_transforms
 from src.utils.losses import get_loss_function
-from src.utils.metrics import calculate_metrics
-from src.utils.checkpoint import save_checkpoint, load_checkpoint, find_last_checkpoint
+from src.utils.metrics import compute_metrics
+from src.utils.checkpoint import save_checkpoint, load_checkpoint, find_last_checkpoint, save_ensemble_checkpoint
 
 def setup_device():
     """디바이스 설정 (Apple M4 Pro 최적화)"""
@@ -249,21 +249,28 @@ def train_single_model(model_name, model_info, base_config, train_df, device, fo
             best_val_loss = val_log_loss
             patience_counter = 0
             
-            # 체크포인트 저장
-            checkpoint = {
-                'epoch': epoch + 1,
-                'model_state_dict': model.state_dict(),
-                'optimizer_state_dict': optimizer.state_dict(),
-                'scheduler_state_dict': scheduler.state_dict(),
+            # 🔄 SOTA 체크포인트 저장
+            metrics = {
+                'train_loss': train_loss,
                 'val_loss': val_loss,
                 'val_log_loss': val_log_loss,
+                'train_acc': train_acc,
                 'val_acc': val_acc,
-                'config': config
+                'epoch_time': epoch_time
             }
             
             best_path = save_dir / f"best_fold_{fold}.pth"
-            torch.save(checkpoint, best_path)
-            print(f"💾 최고 성능 모델 저장: {best_path}")
+            save_checkpoint(
+                model=model,
+                optimizer=optimizer,
+                scheduler=scheduler,
+                epoch=epoch + 1,
+                metrics=metrics,
+                filepath=best_path,
+                config=config,
+                model_name=model_name,
+                fold=fold
+            )
             
         else:
             patience_counter += 1
@@ -336,13 +343,8 @@ def main():
             print(f"❌ {model_name} 학습 실패: {e}")
             continue
     
-    # 앙상블 결과 저장
-    ensemble_dir = Path("outputs/ensemble")
-    ensemble_dir.mkdir(parents=True, exist_ok=True)
-    
-    results_path = ensemble_dir / f"ensemble_results_fold_{args.fold}.json"
-    with open(results_path, 'w', encoding='utf-8') as f:
-        json.dump(ensemble_results, f, indent=2, ensure_ascii=False)
+    # 🏆 앙상블 결과 저장 (SOTA 체크포인트 시스템)
+    results_path = save_ensemble_checkpoint(ensemble_results, args.fold)
     
     print(f"\n🎉 SOTA 앙상블 학습 완료!")
     print(f"📁 결과 저장: {results_path}")
