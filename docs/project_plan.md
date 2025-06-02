@@ -233,30 +233,71 @@ Phase 4: 최종 하이퍼파라미터 미세 조정
 - 교차 검증 결과 분석
 - 최고 성능 모델 선택
 
-## 🚀 **SOTA 코드 업그레이드 완료 (2025-06-02 16:46)**
+## 🚀 **SOTA 코드 업그레이드 완료 (2025-06-02 16:58)**
 
-### **✅ 새로 생성된 고성능 파일들**
+### **✅ SOTA 코드 통일 완료!**
 
-#### **1. 설정 파일**
-- `config/config_sota.yaml`: 최신 SOTA 기법 총동원 설정 ✅
-  - 7개 모델 앙상블 구성
-  - 모델별 최적 하이퍼파라미터
-  - TTA 5단계 설정
-  - Apple M4 Pro 최적화
+#### **🧹 정리된 파일 구조**
 
-#### **2. 학습 스크립트**
-- `scripts/train_ensemble_sota.py`: 고성능 앙상블 학습 ✅
+**📁 메인 스크립트 (SOTA 통일)**
+- `scripts/train_ensemble.py`: 고성능 앙상블 학습 ✅
   - CosineAnnealingWarmRestarts 스케줄러
   - 모델별 개별 최적화
   - 실시간 성능 모니터링
   - 자동 체크포인트 관리
 
-#### **3. 추론 스크립트**
-- `scripts/ensemble_inference_sota.py`: TTA 5단계 추론 ✅
+- `scripts/ensemble_inference.py`: TTA 5단계 추론 ✅
   - 5단계 TTA 전략 구현
   - 가중 앙상블 최적화
   - 신뢰도 분석 기능
   - 성능 예측 시스템
+
+**⚙️ 메인 설정 (SOTA 통일)**
+- `config/config.yaml`: 최신 SOTA 기법 총동원 설정 ✅
+  - 7개 모델 앙상블 구성
+  - 모델별 최적 하이퍼파라미터
+  - TTA 5단계 설정
+  - Apple M4 Pro 최적화
+
+#### **🗑️ 삭제된 예전 파일들**
+
+**❌ 제거된 스크립트들**
+- ~~`scripts/train_ensemble_sota.py`~~ → `scripts/train_ensemble.py`로 통일
+- ~~`scripts/ensemble_inference_sota.py`~~ → `scripts/ensemble_inference.py`로 통일
+- ~~`scripts/single_model_inference.py`~~ → SOTA 앙상블로 대체
+- ~~`config/config_sota.yaml`~~ → `config/config.yaml`로 통일
+
+**✨ 코드 통일 효과**
+- 파일명 단순화 (sota 접미사 제거)
+- 설정 경로 통일 (`config/config.yaml`)
+- 사용법 간소화
+- 유지보수성 향상
+
+### **🎮 간소화된 사용법**
+
+#### **1. SOTA 앙상블 학습**
+```bash
+# 기본 설정으로 학습
+python scripts/train_ensemble.py
+
+# 특정 fold 학습
+python scripts/train_ensemble.py --fold 1
+
+# 커스텀 설정으로 학습
+python scripts/train_ensemble.py --config custom_config.yaml
+```
+
+#### **2. TTA 5단계 추론**
+```bash
+# 기본 TTA 5단계 추론
+python scripts/ensemble_inference.py
+
+# TTA 단계 조정
+python scripts/ensemble_inference.py --tta_steps 3
+
+# 커스텀 출력 경로
+python scripts/ensemble_inference.py --output my_submission.csv
+```
 
 ### **🎯 핵심 개선사항**
 
@@ -314,22 +355,6 @@ batch_size = {
 - **TTA 적용**: Log Loss 1.8-2.3 (추가 8-10% 향상)
 - **최종 목표**: **Log Loss 1.5 이하** 🥇
 
-### **🎮 사용법**
-
-#### **1. SOTA 앙상블 학습**
-```bash
-python scripts/train_ensemble_sota.py --config config/config_sota.yaml --fold 0
-```
-
-#### **2. TTA 5단계 추론**
-```bash
-python scripts/ensemble_inference_sota.py \
-    --ensemble_results outputs/ensemble/ensemble_results_fold_0.json \
-    --config config/config_sota.yaml \
-    --tta_steps 5 \
-    --output outputs/submissions/sota_submission.csv
-```
-
 ## 🎯 **결론: 경진대회 우승을 위한 완벽한 솔루션**
 
 이 프로젝트는:
@@ -341,4 +366,4 @@ python scripts/ensemble_inference_sota.py \
 **실제로 경진대회에서 상위권을 노릴 수 있는 매우 정교하고 고도화된 솔루션입니다!** 🥇
 
 ---
-**마지막 업데이트**: 2025-06-02 16:46 (SOTA 코드 업그레이드 완료) ✅
+**마지막 업데이트**: 2025-06-02 16:58 (SOTA 코드 업그레이드 완료) ✅
