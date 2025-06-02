@@ -1,47 +1,53 @@
-# 차량 분류 모델 설정 파일
+# 차량 분류 모델 설정 파일 (안정적인 통합 버전)
 
 # 데이터 설정
 data:
   train_dir: "data/train"
   test_dir: "data/test"
-  img_size: 384  # ConvNeXt V2 Large에 최적화된 크기
-  num_classes: 396
+  test_csv: "data/test.csv"
+  img_size: 224  # 안정성을 위해 작은 크기 사용
+  num_classes: 393  # 실제 데이터 클래스 수
 
-# 모델 설정 (1등을 위한 최강 모델!)
+# 모델 설정 (안정적인 모델 사용)
 model:
-  backbone: "convnextv2_large.fcmae_ft_in22k_in1k_384"  # 🚀 최고 성능 모델
-  dropout: 0.5
+  backbone: "resnet50"  # 안정적이고 검증된 모델
+  dropout: 0.3  # 과적합 방지
   pretrained: true
 
-# 학습 설정 (1등을 위한 최적화!)
+# 학습 설정 (안정적인 설정)
 training:
-  epochs: 100
-  batch_size: 24  # ConvNeXt V2 Large는 메모리를 많이 사용하므로 조정
-  learning_rate: 0.005  # ConvNeXt에 최적화된 학습률
-  weight_decay: 0.05
-  num_workers: 8
+  epochs: 50
+  batch_size: 32  # 메모리 안정성
+  learning_rate: 0.0001  # 보수적인 학습률
+  weight_decay: 0.01
+  num_workers: 0  # MPS에서 안정성을 위해 0
+  device: "mps"
   
-  # 손실 함수 (불균형 데이터에 최적)
+  # 조기 종료 설정 강화
+  early_stopping:
+    patience: 10  # 더 긴 patience
+    min_delta: 0.001
+    monitor: "val_loss"
+    mode: "min"
+  
+  # 손실 함수 (안정적인 기본 설정)
   loss:
-    type: "FocalLoss"
-    alpha: 1.0
-    gamma: 2.0
-    label_smoothing: 0.15
+    type: "CrossEntropyLoss"  # 기본 손실 함수
+    label_smoothing: 0.1  # 레이블 스무딩으로 과적합 방지
   
   # 옵티마이저
   optimizer:
     type: "AdamW"
+    lr: 0.0001
     betas: [0.9, 0.999]
     eps: 1e-8
+    weight_decay: 0.01
   
   # 스케줄러 (안정적인 학습을 위해)
   scheduler:
-    type: "ReduceLROnPlateau"
-    mode: "min"
-    factor: 0.5
-    patience: 3
-    min_lr: 0.00001
-    verbose: true
+    type: "CosineAnnealingLR"
+    T_max: 50
+    eta_min: 0.00001
 
 # 교차 검증 설정
 cv:
@@ -49,12 +55,26 @@ cv:
   shuffle: true
   random_state: 42
 
+# 데이터 증강 (최소화)
+augmentation:
+  train:
+    horizontal_flip: 0.5
+    rotation: 10  # 작은 회전
+    brightness: 0.1  # 작은 밝기 변화
+    contrast: 0.1   # 작은 대비 변화
+
+# 검증 설정
+validation:
+  split_ratio: 0.2
+  stratify: true
+
 # 로깅 설정
 logging:
   save_dir: "outputs"
-  project_name: "car_classification_convnextv2"
-  experiment_name: "convnextv2_large_1st_place"
+  project_name: "car_classification_stable"
+  experiment_name: "resnet50_stable"
   log_interval: 50
+  save_interval: 5
   save_top_k: 3
   
   # TensorBoard 설정
@@ -66,14 +86,38 @@ logging:
   checkpoint:
     save_best: true
     save_last: true
-    monitor: "val_log_loss"
+    monitor: "val_loss"
     mode: "min"
 
 # 추론 설정
 inference:
-  batch_size: 32
-  tta: true  # Test Time Augmentation
-  tta_steps: 5
+  batch_size: 16
+  tta: false  # 일단 비활성화
+  tta_steps: 1
 
 # 시드 설정
 seed: 42
+
+# 고급 설정 (성능 개선 후 활성화)
+advanced:
+  # 더 큰 모델들 (성능 확인 후 사용)
+  alternative_models:
+    efficientnetv2_l:
+      backbone: "tf_efficientnetv2_l.in21k_ft_in1k"
+      img_size: 384
+      batch_size: 16
+    convnext_large:
+      backbone: "convnext_large.fb_in22k_ft_in1k_384"
+      img_size: 384
+      batch_size: 12
+  
+  # 앙상블 설정
+  ensemble:
+    models: ["resnet50", "efficientnetv2_l", "convnext_large"]
+    weights: [0.4, 0.3, 0.3]
+  
+  # TTA 설정
+  tta_config:
+    enabled: false
+    transforms: ["horizontal_flip", "vertical_flip", "rotate_90"]
+    steps: 5

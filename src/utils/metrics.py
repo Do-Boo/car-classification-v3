@@ -5,7 +5,7 @@
 import numpy as np
 from sklearn.metrics import accuracy_score, log_loss, top_k_accuracy_score
 
-def compute_metrics(y_true, y_pred_probs, num_classes=396):
+def compute_metrics(y_true, y_pred_probs, num_classes=393):
     """
     다양한 메트릭 계산
     

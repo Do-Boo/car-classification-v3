@@ -74,32 +74,73 @@ def create_test_dataloader(test_df, img_size, batch_size=32):
     
     test_loader = DataLoader(
         test_dataset,
-        batch_size=batch_size,
+        batch_size=8,
         shuffle=False,
-        num_workers=4,
+        num_workers=0,
         pin_memory=False
     )
     
     return test_loader
 
-def predict_single_model(model, dataloader, device, model_name):
-    """단일 모델 예측"""
+def predict_single_model_with_tta(model, dataloader, device, model_name, tta_steps=5, num_classes=393):
+    """TTA를 적용한 단일 모델 예측"""
     model.eval()
     all_predictions = []
     
+    print(f"🔄 {model_name} TTA 예측 중 (TTA steps: {tta_steps})")
+    
     with torch.no_grad():
-        for batch in tqdm(dataloader, desc=f"Predicting {model_name}"):
+        for batch in tqdm(dataloader, desc=f"TTA Predicting {model_name}"):
             images = batch[0].to(device)
-            outputs = model(images)
-            batch_pred = F.softmax(outputs, dim=1)
-            all_predictions.append(batch_pred.cpu().numpy())
+            batch_size = images.size(0)
+            
+            # TTA 예측들을 저장할 리스트
+            tta_predictions = []
+            
+            for tta_step in range(tta_steps):
+                # 원본 이미지 (첫 번째 스텝)
+                if tta_step == 0:
+                    augmented_images = images
+                else:
+                    # TTA 변환 적용
+                    augmented_images = apply_tta_transform(images, tta_step)
+                
+                outputs = model(augmented_images)
+                batch_pred = F.softmax(outputs, dim=1)
+                tta_predictions.append(batch_pred.cpu().numpy())
+            
+            # TTA 예측들의 평균
+            tta_avg = np.mean(tta_predictions, axis=0)
+            all_predictions.append(tta_avg)
     
     return np.vstack(all_predictions)
 
-def ensemble_predict(models, test_df, device):
-    """사용자 추천 5개 모델 앙상블 예측"""
-    print("🚀 사용자 추천 5개 모델 앙상블 예측 시작!")
+def apply_tta_transform(images, tta_step):
+    """TTA 변환 적용"""
+    if tta_step == 1:
+        # 수평 뒤집기
+        return torch.flip(images, dims=[3])
+    elif tta_step == 2:
+        # 수직 뒤집기
+        return torch.flip(images, dims=[2])
+    elif tta_step == 3:
+        # 수평 + 수직 뒤집기
+        return torch.flip(images, dims=[2, 3])
+    elif tta_step == 4:
+        # 90도 회전 (시계방향)
+        return torch.rot90(images, k=1, dims=[2, 3])
+    else:
+        return images
+
+def predict_single_model(model, dataloader, device, model_name):
+    """단일 모델 예측 (TTA 없음 - 호환성 유지)"""
+    return predict_single_model_with_tta(model, dataloader, device, model_name, tta_steps=1)
+
+def ensemble_predict(models, test_df, device, use_tta=True, tta_steps=5):
+    """사용자 추천 7개 모델 앙상블 예측 (TTA 적용)"""
+    print("🚀 사용자 추천 7개 모델 앙상블 예측 시작!")
     print(f"📊 테스트 이미지 수: {len(test_df)}")
+    print(f"🔄 TTA 활성화: {use_tta}, TTA Steps: {tta_steps if use_tta else 1}")
     
     all_model_predictions = []
     weights = []
@@ -116,10 +157,13 @@ def ensemble_predict(models, test_df, device):
         img_size = config['data']['img_size']
         print(f"🔧 이미지 크기: {img_size}x{img_size}")
         
-        test_loader = create_test_dataloader(test_df, img_size, batch_size=32)
+        test_loader = create_test_dataloader(test_df, img_size, batch_size=16)  # 배치 크기 감소 (TTA로 인한 메모리 사용량 증가)
         
-        # 예측 수행
-        predictions = predict_single_model(model, test_loader, device, model_name)
+        # TTA 적용 예측 수행
+        if use_tta:
+            predictions = predict_single_model_with_tta(model, test_loader, device, model_name, tta_steps)
+        else:
+            predictions = predict_single_model(model, test_loader, device, model_name)
         
         all_model_predictions.append(predictions)
         weights.append(weight)
@@ -144,6 +188,8 @@ def ensemble_predict(models, test_df, device):
     ensemble_classes = np.argmax(ensemble_predictions, axis=1)
     
     print(f"\n🎉 앙상블 예측 완료: {ensemble_predictions.shape}")
+    if use_tta:
+        print(f"🚀 TTA {tta_steps}배 적용으로 성능 향상!")
     
     return ensemble_predictions, ensemble_classes
 
@@ -171,16 +217,19 @@ def create_submission(test_df, predictions, class_info, output_path):
     print(f"\n📈 총 예측된 클래스 수: {len(class_counts)}/396")
 
 def main():
-    parser = argparse.ArgumentParser(description='Ensemble Inference for Car Classification - User Recommended 5 Models')
+    parser = argparse.ArgumentParser(description='Ensemble Inference for Car Classification - User Recommended 7 Models with TTA')
     parser.add_argument('--ensemble_results', type=str, required=True)
     parser.add_argument('--test_csv', type=str, default='data/test.csv')
     parser.add_argument('--class_info', type=str, default='outputs/data/class_info.json')
-    parser.add_argument('--output', type=str, default='outputs/user_ensemble_submission.csv')
+    parser.add_argument('--output', type=str, default='outputs/user_ensemble_submission_tta.csv')
     parser.add_argument('--fold', type=int, default=0)
+    parser.add_argument('--use_tta', action='store_true', default=True, help='Use Test Time Augmentation')
+    parser.add_argument('--tta_steps', type=int, default=5, help='Number of TTA steps')
     args = parser.parse_args()
     
-    print("🏆 사용자 추천 5개 모델 앙상블 추론 시작!")
-    print("🎯 모델 구성: EfficientNetV2-L + ConvNeXt + Swin + ResNet152 + Inception-v4")
+    print("🏆 사용자 추천 7개 모델 앙상블 추론 시작!")
+    print("🎯 모델 구성: EfficientNetV2-XL + ConvNeXt-XL + Swin-V2 + EfficientNet-B7 + ConvNeXt-L + ResNet200D + ViT-L")
+    print(f"🚀 TTA 활성화: {args.use_tta}, TTA Steps: {args.tta_steps}")
     
     # 디바이스 설정
     if torch.backends.mps.is_available():
@@ -235,16 +284,22 @@ def main():
     
     print(f"\n✅ {len(models)}개 모델 로드 완료")
     
-    # 앙상블 예측
-    ensemble_proba, ensemble_pred = ensemble_predict(models, test_df, device)
+    # 앙상블 예측 (TTA 적용)
+    ensemble_proba, ensemble_pred = ensemble_predict(
+        models, test_df, device, 
+        use_tta=args.use_tta, 
+        tta_steps=args.tta_steps
+    )
     
     # 제출 파일 생성
     print("\n📝 제출 파일 생성 중...")
     os.makedirs(os.path.dirname(args.output), exist_ok=True)
     create_submission(test_df, ensemble_pred, class_info, args.output)
     
-    print("\n🎉 사용자 추천 5개 모델 앙상블 추론 완료!")
-    print("🏆 EfficientNetV2-L + ConvNeXt + Swin + ResNet152 + Inception-v4 = 최강 앙상블!")
+    print("\n🎉 사용자 추천 7개 모델 앙상블 추론 완료!")
+    print("🏆 EfficientNetV2-XL + ConvNeXt-XL + Swin-V2 + EfficientNet-B7 + ConvNeXt-L + ResNet200D + ViT-L = 최강 앙상블!")
+    if args.use_tta:
+        print(f"🚀 TTA {args.tta_steps}배 적용으로 성능 대폭 향상!")
 
 if __name__ == "__main__":
     main() 

@@ -51,7 +51,7 @@ class CarDataset(Dataset):
             return image, row.get('img_path', idx)
 
 def get_train_transforms(size=384):
-    """학습용 데이터 변환 (안전한 버전)"""
+    """학습용 데이터 변환 (완전히 안전한 버전)"""
     
     # size가 튜플이나 리스트인 경우 정수로 변환
     if isinstance(size, (list, tuple)):
@@ -61,7 +61,6 @@ def get_train_transforms(size=384):
     return A.Compose([
         # 크기 조정 (안전한 방법)
         A.Resize(height=size, width=size),
-        A.RandomCrop(height=size, width=size, p=0.3),
         
         # 기본 증강
         A.HorizontalFlip(p=0.5),
